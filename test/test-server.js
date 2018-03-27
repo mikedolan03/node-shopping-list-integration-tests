@@ -13,6 +13,114 @@ const expect = chai.expect;
 // see: https://github.com/chaijs/chai-http
 chai.use(chaiHttp);
 
+describe('Recipes', function() {
+
+  // Before our tests run, we activate the server with a promise. 
+  before(function() {
+    return runServer();
+  });
+
+
+  //after(function() {
+   // return runServer();
+  //});
+
+//get
+  it('should give us a list a recipes on GET', function() {
+
+    return chai.request(app)
+      .get('/recipes')
+      .then(function(res) {
+        expect(res).to.have.status(200);
+        expect(res).to.be.json;
+        expect(res.body).to.be.a('array');
+
+        expect(res.body.length).to.be.at.least(1);
+
+         const expectedKeys = ['id', 'name', 'ingredients'];
+        res.body.forEach(function(item) {
+          expect(item).to.be.a('object');
+          expect(item).to.include.keys(expectedKeys);
+        });
+
+      })
+  }
+  );
+
+  //post
+
+  it('should post a new recipe on POST', function() {
+    const newRecipe = {name:'boiled white rice',ingredients: ['1 cup white rice', '2 cups water', 'pinch of salt'] }; 
+    return chai.request(app)
+      .post('/recipes')
+      .send(newRecipe)
+      .then( function(res) {
+        expect(res).to.have.status(201);
+        expect(res).to.be.json;
+        expect(res.body).to.be.a('object');
+        expect(res.body).to.include.keys('id','name', 'ingredients');
+        expect(res.body.id).to.not.equal(null);
+
+        //we expect that the response will match the new recipe var object above if we add the new id
+        //deep equal compares the body response to the thing in parens
+        //the object assign is taking our newRecipe var and adding an id to it.
+        expect(res.body).to.deep.equal(Object.assign(newRecipe, {id: res.body.id}));
+
+
+      })
+  } );
+
+  //delete
+  it('should delete a recipe on DELETE', function() {
+
+
+    return chai.request(app)
+      .get('/recipes')
+      .then(function(res) {
+        return chai.request(app)
+          .delete(`/recipes/${res.body[0].id}`);
+      })
+      .then(function(res) {
+        expect(res).to.have.status(204);
+      });
+
+  });
+  //put
+
+  it('should edit a current recipe on PUT', function() {  
+
+    const updatedRecipe = {name: 'Ham and Cheese', ingredients: ['bread','ham','cheese'] }; 
+
+
+    return chai.request(app)
+      .get('/recipes')
+      .then(function(res) {
+
+        //add id to updated recipe
+        updatedRecipe.id = res.body[0].id;
+
+        return chai.request(app)
+          .put(`/recipes/${updatedRecipe.id}`)
+          .send(updatedRecipe)
+        })
+      .then( function(res) { 
+        //this only returns a status / no object like shopping list
+        expect(res).to.have.status(204);
+        //so i am going to now check the db again with a get and compare to see if our update went thru
+        return chai.request(app)
+          .get('/recipes')
+          //this could have been a search for the id# too but we know its 0 in the array
+          expect(res.body[0]).to.deep.equal(updatedRecipe);
+
+      });
+      
+
+
+
+  });
+
+
+});
 
 describe('Shopping List', function() {
 
@@ -21,9 +129,10 @@ describe('Shopping List', function() {
   // doing `return runServer`. If we didn't return a promise here,
   // there's a possibility of a race condition where our tests start
   // running before our server has started.
-  before(function() {
-    return runServer();
-  });
+  
+  //before(function() {
+  //  return runServer();
+  //});
 
   // although we only have one test module at the moment, we'll
   // close our server at the end of these tests. Otherwise,
